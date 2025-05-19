@@ -3,22 +3,22 @@ const mongoose = require("mongoose");
 const orderSchema = new mongoose.Schema({
     employeeId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+        ref: "User",
         required: true,
     },
     customerId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
+        ref: "User",
         required: true,
     },
     tableId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "tables",
+        ref: "Table",
         required: true,
     },
     cartId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "carts",
+        ref: "Cart",
         required: true,
     },
     totalAmount: {
