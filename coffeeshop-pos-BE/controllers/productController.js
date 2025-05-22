@@ -30,6 +30,42 @@ const createProduct = async (req, res) => {
   }
 };
 
+const createMultipleProducts = async (req, res) => {
+  try {
+    const { products } = req.body;
+    if (!products || !Array.isArray(products)) {
+      return res.status(400).json({
+        message: "Danh sách sản phẩm không hợp lệ",
+      });
+    }
+    for (const product of products) {
+      if (!product.title || !product.price || !product.categoryId || !product.thumbnail || !product.stock) {
+        return res.status(400).json({
+          message: "Vui lòng nhập đầy đủ thông tin cho tất cả sản phẩm",
+        });
+      }
+    }
+    const createdProducts = await Product.insertMany(
+      products.map(product => ({
+        title: product.title,
+        price: product.price,
+        categoryId: product.categoryId,
+        thumbnail: product.thumbnail,
+        stock: product.stock,
+      }))
+    );
+    res.status(201).json({
+      message: "Tạo sản phẩm thành công",
+      products: createdProducts,
+      total: createdProducts.length,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -129,13 +165,13 @@ const getProduct = async (req, res) => {
 
 const getProductById = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!id) {
+    const { productId } = req.params;
+    if (!productId) {
       return res.status(400).json({
         message: "Vui lòng nhập id sản phẩm",
       });
     }
-    const product = await Product.findById(id);
+    const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
         message: "Sản phẩm không tồn tại",
@@ -155,4 +191,5 @@ module.exports = {
   deleteProduct,
   getProductById,
   getProduct,
+  createMultipleProducts,
 };

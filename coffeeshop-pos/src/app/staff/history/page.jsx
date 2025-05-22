@@ -23,100 +23,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PrintInvoice } from "@/components/print-invoice"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-
-// Dữ liệu mẫu cho đơn hàng
-const initialOrders = [
-  {
-    id: "ORD-001",
-    date: "2023-05-15 14:30",
-    table: "Bàn 3",
-    customer: "Nguyễn Văn A",
-    staff: "Nhân viên demo",
-    total: 75000,
-    status: "Hoàn thành",
-    paymentMethod: "Tiền mặt",
-    items: [
-      { name: "Cà phê đen", quantity: 1, price: 25000 },
-      { name: "Trà sữa trân châu", quantity: 1, price: 35000 },
-      { name: "Bánh ngọt", quantity: 1, price: 15000 },
-    ],
-  },
-  {
-    id: "ORD-002",
-    date: "2023-05-15 15:45",
-    table: "Bàn 5",
-    customer: "Trần Thị B",
-    staff: "Nhân viên demo",
-    total: 120000,
-    status: "Hoàn thành",
-    paymentMethod: "Thẻ ngân hàng",
-    items: [
-      { name: "Sinh tố xoài", quantity: 2, price: 45000 },
-      { name: "Nước ép cam", quantity: 1, price: 40000 },
-      { name: "Bánh mì", quantity: 1, price: 20000 },
-    ],
-  },
-  {
-    id: "ORD-003",
-    date: "2023-05-15 16:20",
-    table: "Bàn 1",
-    customer: "Lê Văn C",
-    staff: "Nhân viên demo",
-    total: 65000,
-    status: "Hoàn thành",
-    paymentMethod: "Tiền mặt",
-    items: [
-      { name: "Cà phê sữa", quantity: 1, price: 30000 },
-      { name: "Trà đào", quantity: 1, price: 35000 },
-    ],
-  },
-  {
-    id: "ORD-004",
-    date: "2023-05-15 17:10",
-    table: "Bàn 2",
-    customer: "Phạm Thị D",
-    staff: "Nhân viên demo",
-    total: 90000,
-    status: "Hoàn thành",
-    paymentMethod: "Ví điện tử",
-    items: [
-      { name: "Trà sữa matcha", quantity: 2, price: 35000 },
-      { name: "Bánh quy", quantity: 1, price: 20000 },
-    ],
-  },
-  {
-    id: "ORD-005",
-    date: "2023-05-16 09:15",
-    table: "Bàn 4",
-    customer: "Hoàng Văn E",
-    staff: "Nhân viên demo",
-    total: 110000,
-    status: "Hoàn thành",
-    paymentMethod: "Thẻ ngân hàng",
-    items: [
-      { name: "Nước ép táo", quantity: 1, price: 40000 },
-      { name: "Sinh tố dâu", quantity: 1, price: 45000 },
-      { name: "Bánh ngọt", quantity: 1, price: 25000 },
-    ],
-  },
-  {
-    id: "ORD-006",
-    date: "2023-05-16 10:30",
-    table: "Bàn 6",
-    customer: "Ngô Thị F",
-    staff: "Nhân viên demo",
-    total: 70000,
-    status: "Hoàn thành",
-    paymentMethod: "Tiền mặt",
-    items: [
-      { name: "Cà phê sữa", quantity: 1, price: 30000 },
-      { name: "Bánh mì", quantity: 2, price: 20000 },
-    ],
-  },
-]
+import { useEffect } from "react"
+import { toast } from "@/components/ui/use-toast"
 
 export default function HistoryPage() {
-  const [orders, setOrders] = useState(initialOrders)
+  const [orders, setOrders] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState("all")
   const [paymentFilter, setPaymentFilter] = useState("all")
@@ -124,43 +35,182 @@ export default function HistoryPage() {
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
   const [currentOrder, setCurrentOrder] = useState(null)
   const [viewMode, setViewMode] = useState("list")
+  const [customer, setCustomer] = useState(null)
+  const [table, setTable] = useState(null)
+  const [products, setProducts] = useState(null)
+  const [cart, setCart] = useState([])
+  const token = sessionStorage.getItem("authToken");
+  const decodedToken = JSON.parse(atob(token.split('.')[1]))
+  const employeeId = decodedToken.id
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/orders/employee/${employeeId}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        })
+        if (!response.ok) {
+          throw new Error('Failed to fetch orders')
+        }
+        const data = await response.json()
+        console.log(data)
+        const ordersArray = data.data || []
+        setOrders(Array.isArray(ordersArray) ? ordersArray : [])
+      } catch (error) {
+        console.error('Error fetching orders:', error)
+        setOrders([])
+      }
+    }
+    fetchOrders()
+  }, [token, employeeId])
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const customers = await Promise.all(
+          orders.map(order =>
+            fetch(`http://localhost:3001/customers/${order.customerId._id}`, {
+              headers: { "Authorization": `Bearer ${token}` }
+            }).then(res => res.json())
+          )
+        )
+        setCustomer(customers)
+      } catch (error) {
+        console.error('Error fetching customers:', error)
+        setCustomer([])
+      }
+    }
+    fetchCustomers()
+  }, [token, orders])
+
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const tables = await Promise.all(
+          orders.map(order =>
+            fetch(`http://localhost:3001/tables/${order.tableId._id}`, {
+              headers: { "Authorization": `Bearer ${token}` }
+            })
+              .then(res => {
+                // console.log('Fetch response:', res.json());
+                return res.json();
+              })
+          )
+        );
+        setTable(tables);
+      } catch (error) {
+        console.error('Error fetching tables:', error);
+        setTable([]);
+      }
+    };
+    if (orders.length > 0 && token) {
+      fetchTables();
+    }
+  }, [token, orders]);
+  
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        // Get all unique product IDs from all orders
+        const allProductIds = [...new Set(orders.flatMap(order => order.items || []))]
+        console.log(allProductIds)
+        // Fetch product details for each unique product ID
+        const products = await Promise.all(
+          allProductIds.map(async productId => {
+            try {
+              const response = await fetch(`http://localhost:3001/products/${productId}`)
+              if (!response.ok) {
+                return {
+                  _id: productId,
+                  title: 'Sản phẩm không tồn tại',
+                  price: 0
+                }
+              }
+              const data = await response.json()
+              console.log(data)
+              return response.json()
+            } catch (error) {
+              console.error(`Error fetching product ${productId}:`, error)
+              return {
+                _id: productId,
+                title: 'Sản phẩm không tồn tại',
+                price: 0
+              }
+            }
+          })
+        )
+        setProducts(products)
+      } catch (error) {
+        console.error('Error fetching products:', error)
+        setProducts([])
+      }
+    }
+    fetchProducts()
+  }, [token, orders])
+
+  // Format date function
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
 
   // Lọc đơn hàng theo từ khóa tìm kiếm, ngày và phương thức thanh toán
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.table.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrders = orders?.filter((order) => {
+    if (!order) return false;
 
-    const matchesDate = dateFilter === "all" || order.date.includes(dateFilter)
+    const matchesSearch =
+      (order._id?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (order.customerId?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (order.tableId?.tableNumber?.toString() || '').includes(searchTerm.toLowerCase())
+
+    const matchesDate = dateFilter === "all" || (order.createdAt || '').includes(dateFilter)
 
     const matchesPayment = paymentFilter === "all" || order.paymentMethod === paymentFilter
 
     return matchesSearch && matchesDate && matchesPayment
-  })
+  }) || []
 
   // Tính tổng doanh thu từ các đơn hàng đã lọc
-  const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0)
+  const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
 
   // Tính thuế (10%)
   const totalTax = totalRevenue * 0.1
 
-  // Tính tổng tiền hàng
+  // Tính tổng tiền hàng (chưa bao gồm thuế)
   const totalSubtotal = totalRevenue - totalTax
 
   // Dữ liệu cho hóa đơn
   const getInvoiceData = (order) => {
     return {
-      orderNumber: order.id,
-      date: order.date,
-      table: order.table,
-      staff: order.staff,
-      customer: { name: order.customer },
-      items: order.items,
-      subtotal: order.total - order.total * 0.1,
-      tax: order.total * 0.1,
-      total: order.total,
-      paymentMethod: order.paymentMethod,
+      orderNumber: order._id || '',
+      date: formatDate(order.createdAt) || '',
+      table: table?.find(t => t._id === order.tableId)?.tableNumber || 'N/A',
+      staff: order.employeeId?.name || 'N/A',
+      customer: { 
+        name: customer?.find(c => c._id === order.customerId)?.name || 'N/A'
+      },
+      items: order.items?.map(productId => {
+        const product = products?.find(p => p._id === productId)
+        return {
+          name: product?.title || 'N/A',
+          quantity: 1,
+          price: product?.price || 0
+        }
+      }) || [],
+      subtotal: ((order.totalAmount || 0) - (order.totalAmount || 0) * 0.1) || 0,
+      tax: ((order.totalAmount || 0) * 0.1) || 0,
+      total: order.totalAmount || 0,
+      paymentMethod: order.paymentMethod || 'N/A',
     }
   }
 
@@ -179,6 +229,34 @@ export default function HistoryPage() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  // Thêm sản phẩm vào giỏ hàng
+  const addToCart = (product) => {
+    const existingItem = cart.find((item) => item._id === product._id)
+    if (existingItem) {
+      setCart(
+        cart.map((item) =>
+          item._id === product._id
+            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
+            : item,
+        ),
+      )
+    } else {
+      setCart([...cart, { 
+        _id: product._id,
+        productId: product._id, // Thêm productId để đảm bảo khi tạo order
+        title: product.title,
+        price: product.price,
+        quantity: 1,
+        total: product.price,
+        thumbnail: product.thumbnail
+      }])
+    }
+    toast({
+      title: "Đã thêm vào giỏ hàng",
+      description: product.title,
+    })
   }
 
   return (
@@ -345,17 +423,17 @@ export default function HistoryPage() {
                     </TableRow>
                   ) : (
                     filteredOrders.map((order) => (
-                      <TableRow key={order.id} className="hover:bg-blue-50">
-                        <TableCell className="font-medium text-blue-600">{order.id}</TableCell>
+                      <TableRow key={order._id} className="hover:bg-blue-50">
+                        <TableCell className="font-medium text-blue-600">{order._id}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-gray-400" />
-                            {order.date}
+                            {formatDate(order.createdAt)}
                           </div>
                         </TableCell>
-                        <TableCell>{order.table}</TableCell>
-                        <TableCell>{order.customer}</TableCell>
-                        <TableCell className="font-medium">{order.total.toLocaleString()} đ</TableCell>
+                        <TableCell>{order.tableId?.tableNumber || 'N/A'}</TableCell>
+                        <TableCell>{order.customerId?.name || 'N/A'}</TableCell>
+                        <TableCell className="font-medium">{(order.totalAmount || 0).toLocaleString()} đ</TableCell>
                         <TableCell>
                           <Badge className={`${getPaymentMethodColor(order.paymentMethod)}`}>
                             {order.paymentMethod}
@@ -505,23 +583,19 @@ export default function HistoryPage() {
               <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-4">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Mã đơn hàng</p>
-                  <p className="font-medium text-gray-800">{currentOrder.id}</p>
+                  <p className="font-medium text-gray-800">{currentOrder._id}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Ngày</p>
-                  <p className="text-gray-800">{currentOrder.date}</p>
+                  <p className="text-gray-800">{formatDate(currentOrder.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Bàn</p>
-                  <p className="text-gray-800">{currentOrder.table}</p>
+                  <p className="text-gray-800">{currentOrder.tableId?.tableNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Khách hàng</p>
-                  <p className="text-gray-800">{currentOrder.customer}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Nhân viên</p>
-                  <p className="text-gray-800">{currentOrder.staff}</p>
+                  <p className="text-gray-800">{currentOrder.customerId?.name}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Phương thức thanh toán</p>
@@ -544,16 +618,19 @@ export default function HistoryPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {currentOrder.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{item.price.toLocaleString()} đ</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {(item.quantity * item.price).toLocaleString()} đ
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {currentOrder.items?.map((item, index) => {
+                        const product = products?.find(p => p._id === item.productId)
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{item?.title || 'N/A'}</TableCell>
+                            <TableCell className="text-right">{item.quantity || 1}</TableCell>
+                            <TableCell className="text-right">{(item.price || 0).toLocaleString()} đ</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {(item.total || 0).toLocaleString()} đ
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -561,7 +638,7 @@ export default function HistoryPage() {
 
               <div className="flex justify-between rounded-lg bg-blue-50 p-4 text-blue-800">
                 <p className="font-medium">Tổng cộng:</p>
-                <p className="text-lg font-bold">{currentOrder.total.toLocaleString()} đ</p>
+                <p className="text-lg font-bold">{(currentOrder.totalAmount || 0).toLocaleString()} đ</p>
               </div>
 
               <div className="flex justify-end">

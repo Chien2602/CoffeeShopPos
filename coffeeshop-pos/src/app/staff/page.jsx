@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,10 +34,14 @@ import {
   CircleDollarSign,
   BadgePercent,
   ShoppingBag,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  UserPlus,
 } from "lucide-react"
+import { Label } from "@/components/ui/label"
+// import * as jwt_decode from 'jwt-decode';
 
-// Thêm sau các import
-// Tùy chỉnh scrollbar
 const scrollbarStyles = `
   body {
     overflow: hidden; /* Ẩn thanh cuộn ngoài cùng của trang */
@@ -64,134 +68,32 @@ const scrollbarStyles = `
   }
 `
 
-// Dữ liệu mẫu cho sản phẩm
-const initialProducts = [
-  {
-    id: 1,
-    name: "Cà phê đen",
-    category: "Cà phê",
-    price: 25000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 2,
-    name: "Cà phê sữa",
-    category: "Cà phê",
-    price: 30000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 3,
-    name: "Trà sữa trân châu",
-    category: "Trà sữa",
-    price: 35000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 4,
-    name: "Trà sữa matcha",
-    category: "Trà sữa",
-    price: 35000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 5,
-    name: "Nước ép cam",
-    category: "Nước ép",
-    price: 40000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 6,
-    name: "Nước ép táo",
-    category: "Nước ép",
-    price: 40000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 7,
-    name: "Sinh tố xoài",
-    category: "Sinh tố",
-    price: 45000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 8,
-    name: "Sinh tố dâu",
-    category: "Sinh tố",
-    price: 45000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 9,
-    name: "Soda chanh",
-    category: "Soda",
-    price: 35000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 10,
-    name: "Soda việt quất",
-    category: "Soda",
-    price: 35000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 11,
-    name: "Trà đào",
-    category: "Trà",
-    price: 30000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-  {
-    id: 12,
-    name: "Trà chanh",
-    category: "Trà",
-    price: 25000,
-    image: "/placeholder.svg?height=80&width=80",
-  },
-]
+const API_BASE_URL = "http://localhost:3001"
 
-// Dữ liệu mẫu cho bàn
-const initialTables = [
-  { id: 1, name: "Bàn 1", capacity: 4, status: "available" },
-  { id: 2, name: "Bàn 2", capacity: 2, status: "available" },
-  { id: 3, name: "Bàn 3", capacity: 6, status: "occupied", customer: "Nguyễn Văn A", timeOccupied: "14:30" },
-  { id: 4, name: "Bàn 4", capacity: 4, status: "available" },
-  { id: 5, name: "Bàn 5", capacity: 8, status: "reserved", customer: "Trần Thị B", timeOccupied: "18:00" },
-  { id: 6, name: "Bàn 6", capacity: 2, status: "available" },
-]
-
-// Dữ liệu mẫu cho khách hàng
-const initialCustomers = [
-  { id: 1, name: "Nguyễn Văn A", phone: "0901234567", points: 120, discount: 10000 },
-  { id: 2, name: "Trần Thị B", phone: "0912345678", points: 85, discount: 5000 },
-  { id: 3, name: "Lê Văn C", phone: "0923456789", points: 210, discount: 20000 },
-]
-
-// Thay đổi phần lọc danh mục để thêm icon
-const getCategoryIcon = (category) => {
-  switch (category) {
-    case "Cà phê":
-      return <Coffee className="h-5 w-5 text-amber-700" />
-    case "Trà sữa":
-      return <Cup className="h-5 w-5 text-purple-600" />
-    case "Nước ép":
-      return <GlassWater className="h-5 w-5 text-orange-500" />
-    case "Sinh tố":
-      return <Banana className="h-5 w-5 text-yellow-500" />
-    case "Soda":
-      return <Sparkles className="h-5 w-5 text-blue-500" />
-    case "Trà":
-      return <Leaf className="h-5 w-5 text-green-600" />
-    default:
-      return <ShoppingBag className="h-5 w-5 text-gray-600" />
+// Add function to decode JWT token
+const decodeToken = (token) => {
+  try {
+    const base64Url = token.split(".")[1]
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    )
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    console.error("Error decoding token:", error)
+    return null
   }
 }
 
 export default function POSPage() {
   const { toast } = useToast()
-  const [products, setProducts] = useState(initialProducts)
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [tables, setTables] = useState([])
+  const [customers, setCustomers] = useState([])
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -204,41 +106,292 @@ export default function POSPage() {
   const [customerSearchTerm, setCustomerSearchTerm] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("Tiền mặt")
   const [orderNumber, setOrderNumber] = useState("985")
-
-  // Lọc sản phẩm theo từ khóa tìm kiếm và danh mục
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
+  const [editingItem, setEditingItem] = useState(null)
+  const [loading, setLoading] = useState({
+    products: true,
+    categories: true,
+    tables: true,
+    customers: true,
+  })
+  const [error, setError] = useState({
+    products: null,
+    categories: null,
+    tables: null,
+    customers: null,
   })
 
-  // Lọc khách hàng theo từ khóa tìm kiếm
-  const filteredCustomers = initialCustomers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-      customer.phone.includes(customerSearchTerm),
-  )
+  const [currentPage, setCurrentPage] = useState(1)
+  const [productsPerPage, setProductsPerPage] = useState(12)
+  const token = sessionStorage.getItem("authToken") || localStorage.getItem("authToken")
+  const user = token ? decodeToken(token) : null
+  // console.log(user)
 
-  // Lấy danh sách các danh mục duy nhất
-  const categories = ["all", ...Array.from(new Set(products.map((product) => product.category)))]
+  // const user = jwt_decode(token);
+
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  })
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, products: true }))
+        const response = await fetch(`${API_BASE_URL}/products`)
+        if (!response.ok) throw new Error("Failed to fetch products")
+        const data = await response.json()
+        console.log(data)
+        setProducts(Array.isArray(data) ? data : [])
+        setError((prev) => ({ ...prev, products: null }))
+      } catch (err) {
+        console.error("Error fetching products:", err)
+        setError((prev) => ({ ...prev, products: err.message }))
+        toast({
+          title: "Error",
+          description: "Failed to load products. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading((prev) => ({ ...prev, products: false }))
+      }
+    }
+    fetchProducts()
+  }, [toast])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, categories: true }))
+        const response = await fetch(`${API_BASE_URL}/categories`)
+        if (!response.ok) throw new Error("Failed to fetch categories")
+        const data = await response.json()
+        setCategories(data)
+        setError((prev) => ({ ...prev, categories: null }))
+      } catch (err) {
+        console.error("Error fetching categories:", err)
+        setError((prev) => ({ ...prev, categories: err.message }))
+        toast({
+          title: "Error",
+          description: "Failed to load categories. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading((prev) => ({ ...prev, categories: false }))
+      }
+    }
+    fetchCategories()
+  }, [toast])
+
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, tables: true }))
+        const response = await fetch(`${API_BASE_URL}/tables`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!response.ok) throw new Error("Failed to fetch tables")
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setTables(
+            data.map((table) => ({
+              ...table,
+              id: table._id,
+              name: `Bàn ${table.tableNumber}`,
+              status: table.status || "available",
+            })),
+          )
+        } else {
+          console.error("Invalid data format received:", data)
+          toast({
+            title: "Lỗi dữ liệu",
+            description: "Định dạng dữ liệu không hợp lệ",
+            variant: "destructive",
+          })
+        }
+        setError((prev) => ({ ...prev, tables: null }))
+      } catch (err) {
+        console.error("Error fetching tables:", err)
+        setError((prev) => ({ ...prev, tables: err.message }))
+        toast({
+          title: "Error",
+          description: "Failed to load tables. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading((prev) => ({ ...prev, tables: false }))
+      }
+    }
+    fetchTables()
+  }, [toast, token])
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setLoading((prev) => ({ ...prev, customers: true }))
+        const response = await fetch(`${API_BASE_URL}/customers`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!response.ok) throw new Error("Failed to fetch customers")
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setCustomers(
+            data.map((customer) => ({
+              ...customer,
+              id: customer._id,
+              discount: customer.points >= 100 ? Math.floor(customer.points / 100) * 10000 : 0,
+            })),
+          )
+        } else {
+          console.error("Invalid customer data format:", data)
+          toast({
+            title: "Lỗi dữ liệu",
+            description: "Định dạng dữ liệu khách hàng không hợp lệ",
+            variant: "destructive",
+          })
+        }
+        setError((prev) => ({ ...prev, customers: null }))
+      } catch (err) {
+        console.error("Error fetching customers:", err)
+        setError((prev) => ({ ...prev, customers: err.message }))
+        toast({
+          title: "Error",
+          description: "Failed to load customers. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading((prev) => ({ ...prev, customers: false }))
+      }
+    }
+    fetchCustomers()
+  }, [toast, token])
+
+  const handleAddCustomer = async () => {
+    if (!newCustomer.name || !newCustomer.phone) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập đầy đủ thông tin bắt buộc",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/customers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newCustomer),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to add customer")
+      }
+
+      const data = await response.json()
+      setCustomers([...customers, data])
+      setSelectedCustomer(data)
+      setIsAddCustomerDialogOpen(false)
+      setNewCustomer({
+        name: "",
+        phone: "",
+        email: "",
+        address: "",
+      })
+
+      toast({
+        title: "Thành công",
+        description: "Đã thêm khách hàng mới",
+      })
+    } catch (err) {
+      console.error("Error adding customer:", err)
+      toast({
+        title: "Lỗi",
+        description: err.message || "Không thể thêm khách hàng. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const categoryList = ["all", ...categories.map((category) => category.title)]
+
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case "Cà phê":
+        return <Coffee className="h-5 w-5 text-amber-700" />
+      case "Trà sữa":
+        return <Cup className="h-5 w-5 text-purple-600" />
+      case "Nước ép":
+        return <GlassWater className="h-5 w-5 text-orange-500" />
+      case "Sinh tố":
+        return <Banana className="h-5 w-5 text-yellow-500" />
+      case "Soda":
+        return <Sparkles className="h-5 w-5 text-blue-500" />
+      case "Trà":
+        return <Leaf className="h-5 w-5 text-green-600" />
+      default:
+        return <ShoppingBag className="h-5 w-5 text-gray-600" />
+    }
+  }
+
+  const filteredProducts = Array.isArray(products)
+    ? products.filter((product) => {
+        const matchesSearch = product?.title?.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCategory =
+          categoryFilter === "all" ||
+          (product?.categoryId && categories.find((cat) => cat._id === product.categoryId)?.title === categoryFilter)
+        return matchesSearch && matchesCategory
+      })
+    : []
+
+  // Thêm thông tin hiển thị kết quả tìm kiếm
+  const searchInfo =
+    filteredProducts.length === 0 ? "Không tìm thấy sản phẩm nào" : `Hiển thị ${filteredProducts.length} sản phẩm`
+
+  // Lọc khách hàng theo từ khóa tìm kiếm
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+      customer.phone?.includes(customerSearchTerm),
+  )
 
   // Thêm sản phẩm vào giỏ hàng
   const addToCart = (product) => {
-    const existingItem = cart.find((item) => item.id === product.id)
+    const existingItem = cart.find((item) => item.productId === product._id)
     if (existingItem) {
       setCart(
         cart.map((item) =>
-          item.id === product.id
+          item.productId === product._id
             ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
             : item,
         ),
       )
     } else {
-      setCart([...cart, { ...product, quantity: 1, total: product.price }])
+      setCart([
+        ...cart,
+        {
+          _id: product._id, // This will be used as the cart item ID
+          productId: product._id, // This ensures the product ID matches the database
+          title: product.title,
+          price: product.price,
+          quantity: 1,
+          total: product.price,
+          thumbnail: product.thumbnail,
+        },
+      ])
     }
     toast({
       title: "Đã thêm vào giỏ hàng",
-      description: product.name,
+      description: product.title,
     })
   }
 
@@ -246,7 +399,9 @@ export default function POSPage() {
   const increaseQuantity = (id) => {
     setCart(
       cart.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item,
+        item.productId === id
+          ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
+          : item,
       ),
     )
   }
@@ -256,7 +411,7 @@ export default function POSPage() {
     setCart(
       cart
         .map((item) =>
-          item.id === id && item.quantity > 1
+          item.productId === id && item.quantity > 1
             ? { ...item, quantity: item.quantity - 1, total: (item.quantity - 1) * item.price }
             : item,
         )
@@ -266,7 +421,7 @@ export default function POSPage() {
 
   // Xóa sản phẩm khỏi giỏ hàng
   const removeFromCart = (id) => {
-    setCart(cart.filter((item) => item.id !== id))
+    setCart(cart.filter((item) => item.productId !== id))
   }
 
   // Xóa toàn bộ giỏ hàng
@@ -274,6 +429,25 @@ export default function POSPage() {
     setCart([])
     setSelectedTable(null)
     setSelectedCustomer(null)
+  }
+
+  // Chỉnh sửa số lượng sản phẩm
+  const handleEditItem = (item) => {
+    setEditingItem(item)
+  }
+
+  // Lưu chỉnh sửa số lượng sản phẩm
+  const handleSaveEdit = (id, newQuantity) => {
+    if (newQuantity > 0) {
+      setCart(
+        cart.map((item) =>
+          item.productId === id ? { ...item, quantity: newQuantity, total: newQuantity * item.price } : item,
+        ),
+      )
+    } else {
+      removeFromCart(id)
+    }
+    setEditingItem(null)
   }
 
   // Tính tổng tiền hàng
@@ -286,7 +460,7 @@ export default function POSPage() {
   const total = subtotal + tax
 
   // Xử lý thanh toán
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (cart.length === 0) {
       toast({
         title: "Giỏ hàng trống",
@@ -296,29 +470,124 @@ export default function POSPage() {
       return
     }
 
-    setIsPaymentDialogOpen(false)
-    setIsPrintDialogOpen(true)
-
-    // Cập nhật trạng thái bàn nếu có
-    if (selectedTable) {
-      // Trong thực tế, bạn sẽ cập nhật trạng thái bàn trong cơ sở dữ liệu
+    if (!selectedTable) {
       toast({
-        title: "Đã cập nhật trạng thái bàn",
-        description: `${selectedTable.name} đã được đánh dấu là trống`,
+        title: "Chưa chọn bàn",
+        description: "Vui lòng chọn bàn trước khi thanh toán",
+        variant: "destructive",
       })
+      return
     }
 
-    // Cập nhật điểm tích lũy cho khách hàng nếu có
-    if (selectedCustomer) {
-      // Trong thực tế, bạn sẽ cập nhật điểm tích lũy trong cơ sở dữ liệu
+    if (!user) {
       toast({
-        title: "Đã cập nhật điểm tích lũy",
-        description: `Khách hàng ${selectedCustomer.name} đã được cộng ${Math.floor(total / 10000)} điểm`,
+        title: "Lỗi xác thực",
+        description: "Vui lòng đăng nhập lại",
+        variant: "destructive",
       })
+      return
     }
 
-    // Tạo mã đơn hàng mới cho lần thanh toán tiếp theo
-    setOrderNumber(Math.floor(900 + Math.random() * 100).toString())
+    try {
+      // Tạo đơn hàng mới
+      const orderData = {
+        tableId: selectedTable._id,
+        customerId: selectedCustomer?._id || null,
+        totalAmount: total,
+        employeeId: user.id,
+        items: cart.map((item) => ({
+          productId: item._id, // Sử dụng _id thay vì productId
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total,
+        })),
+        paymentMethod,
+        status: "Đã thanh toán",
+      }
+
+      console.log('Order data being sent:', orderData); // Debug log
+
+      // Gửi đơn hàng lên server
+      const response = await fetch(`${API_BASE_URL}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create order")
+      }
+
+      const orderResult = await response.json()
+
+      // Cập nhật trạng thái bàn
+      const tableResponse = await fetch(`${API_BASE_URL}/tables/${selectedTable.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: "Đang phục vụ" }),
+      })
+
+      if (!tableResponse.ok) {
+        console.error("Failed to update table status")
+        toast({
+          title: "Cảnh báo",
+          description: "Không thể cập nhật trạng thái bàn",
+          variant: "destructive",
+        })
+      }
+
+      // Cập nhật điểm tích lũy cho khách hàng nếu có
+      if (selectedCustomer) {
+        const newPoints = Math.floor(total / 10000)
+        const customerResponse = await fetch(`${API_BASE_URL}/customers/${selectedCustomer.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            points: selectedCustomer.points + newPoints,
+          }),
+        })
+
+        if (!customerResponse.ok) {
+          console.error("Failed to update customer points")
+          toast({
+            title: "Cảnh báo",
+            description: "Không thể cập nhật điểm tích lũy",
+            variant: "destructive",
+          })
+        }
+      }
+
+      setIsPaymentDialogOpen(false)
+      setIsPrintDialogOpen(true)
+
+      // Tạo mã đơn hàng mới cho lần thanh toán tiếp theo
+      setOrderNumber(Math.floor(900 + Math.random() * 100).toString())
+
+      // Clear cart and selections
+      clearCart()
+
+      toast({
+        title: "Thanh toán thành công",
+        description: `Đơn hàng #${orderNumber} đã được thanh toán`,
+      })
+    } catch (err) {
+      console.error("Error processing payment:", err)
+      toast({
+        title: "Lỗi thanh toán",
+        description: err.message || "Đã xảy ra lỗi khi xử lý thanh toán. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Dữ liệu cho hóa đơn
@@ -335,7 +604,11 @@ export default function POSPage() {
     paymentMethod: paymentMethod,
   }
 
-  // Thêm trước return statement
+  // Reset pagination when search or category filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, categoryFilter])
+
   return (
     <>
       <style jsx global>
@@ -358,51 +631,127 @@ export default function POSPage() {
           </div>
 
           <div className="mb-4 flex overflow-x-auto bg-gray-100 p-2 rounded-md">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant="ghost"
-                className={`mr-1 flex items-center justify-center ${
-                  categoryFilter === category ? "bg-white shadow-sm font-medium" : "bg-transparent hover:bg-white/60"
-                }`}
-                onClick={() => setCategoryFilter(category)}
-              >
-                {getCategoryIcon(category)}
-                <span className="ml-1.5">{category === "all" ? "Tất cả" : category}</span>
-              </Button>
-            ))}
+            {loading.categories ? (
+              <div className="flex items-center justify-center p-2 w-full">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-500">Đang tải danh mục...</span>
+              </div>
+            ) : (
+              categoryList.map((category) => (
+                <Button
+                  key={category}
+                  variant="ghost"
+                  className={`mr-1 flex items-center justify-center ${
+                    categoryFilter === category ? "bg-white shadow-sm font-medium" : "bg-transparent hover:bg-white/60"
+                  }`}
+                  onClick={() => setCategoryFilter(category)}
+                >
+                  {getCategoryIcon(category)}
+                  <span className="ml-1.5">{category === "all" ? "Tất cả" : category}</span>
+                </Button>
+              ))
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="overflow-hidden rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md"
-              >
-                <div className="bg-gray-100 aspect-square flex items-center justify-center">
-                  <img
-                    src={product.image || "/placeholder.svg"}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="bg-gray-600 text-white p-2">
-                  <h3 className="font-medium">{product.name}</h3>
-                </div>
-                <div className="flex items-center justify-between p-2 border-t-0 border-gray-200">
-                  <p className="font-bold">{product.price.toLocaleString()} VND</p>
+          {loading.products ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
+              <p className="text-gray-500">Đang tải sản phẩm...</p>
+            </div>
+          ) : error.products ? (
+            <div className="flex flex-col items-center justify-center h-64 text-red-500">
+              <p>Không thể tải sản phẩm. Vui lòng thử lại.</p>
+              <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+                Tải lại
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="text-center text-sm text-gray-500 mb-4">{searchInfo}</div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4">
+                {filteredProducts
+                  .slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage)
+                  .map((product) => (
+                    <div
+                      key={product._id}
+                      className="overflow-hidden rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md"
+                    >
+                      <div className="bg-gray-100 aspect-square flex items-center justify-center">
+                        <img
+                          src={product.thumbnail || "/placeholder.svg?height=80&width=80"}
+                          alt={product.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="bg-[#48A6A7] text-white p-2">
+                        <h3 className="font-medium">{product.title}</h3>
+                      </div>
+                      <div className="flex items-center justify-between p-2 border-t-0 border-gray-200">
+                        <p className="font-bold">{product.price?.toLocaleString()} VND</p>
+                        <Button
+                          size="sm"
+                          className="h-8 bg-[#57B4BA] hover:bg-[#006A71] cursor-pointer text-white rounded-full px-3"
+                          onClick={() => addToCart(product)}
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-1" />
+                          Thêm
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredProducts.length > productsPerPage && (
+                <div className="flex justify-center items-center mt-6 space-x-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="h-8 bg-green-500 hover:bg-green-600 text-white rounded-full px-3"
-                    onClick={() => addToCart(product)}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
                   >
-                    <ShoppingCart className="h-4 w-4 mr-1" />
-                    Thêm
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  {Array.from({ length: Math.ceil(filteredProducts.length / productsPerPage) }, (_, i) => i + 1)
+                    .filter(
+                      (page) =>
+                        page === 1 ||
+                        page === Math.ceil(filteredProducts.length / productsPerPage) ||
+                        (page >= currentPage - 1 && page <= currentPage + 1),
+                    )
+                    .map((page, index, array) => (
+                      <React.Fragment key={page}>
+                        {index > 0 && array[index - 1] !== page - 1 && <span className="text-gray-500">...</span>}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={`h-8 w-8 p-0 ${
+                            currentPage === page ? "bg-[#48A6A7] hover:bg-[#006A71] text-white" : "hover:bg-gray-100"
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      </React.Fragment>
+                    ))}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(filteredProducts.length / productsPerPage)))
+                    }
+                    disabled={currentPage === Math.ceil(filteredProducts.length / productsPerPage)}
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                  >
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Phần phải: Giỏ hàng và thanh toán */}
@@ -441,46 +790,72 @@ export default function POSPage() {
               <div className="space-y-3">
                 {cart.map((item) => (
                   <div
-                    key={item.id}
+                    key={item.productId}
                     className="flex items-center gap-3 border border-gray-100 rounded-lg p-2 hover:bg-gray-50"
                   >
                     <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-gray-100 shadow-sm">
                       <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
+                        src={item.thumbnail || "/placeholder.svg?height=80&width=80"}
+                        alt={item.title}
                         className="h-full w-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                      <h4 className="font-medium text-sm truncate">{item.title}</h4>
                       <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center border border-gray-200 rounded-full bg-white shadow-sm">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 rounded-full hover:bg-red-50 hover:text-red-500 p-0"
-                            onClick={() => decreaseQuantity(item.id)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-xs font-medium">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 rounded-full hover:bg-green-50 hover:text-green-500 p-0"
-                            onClick={() => increaseQuantity(item.id)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <span className="text-gray-700 font-medium text-sm">{item.price.toLocaleString()} đ</span>
+                        {editingItem?.productId === item.productId ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={editingItem.quantity}
+                              onChange={(e) =>
+                                setEditingItem({ ...editingItem, quantity: Number.parseInt(e.target.value) || 0 })
+                              }
+                              className="w-16 h-8 text-center"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(item.productId, editingItem.quantity)}
+                              className="h-8 bg-green-500 hover:bg-green-600"
+                            >
+                              Lưu
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center border border-gray-200 rounded-full bg-white shadow-sm">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 rounded-full hover:bg-red-50 hover:text-red-500 p-0"
+                              onClick={() => decreaseQuantity(item.productId)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span
+                              className="w-6 text-center text-xs font-medium cursor-pointer"
+                              onClick={() => handleEditItem(item)}
+                            >
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 rounded-full hover:bg-green-50 hover:text-green-500 p-0"
+                              onClick={() => increaseQuantity(item.productId)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                        <span className="text-gray-700 font-medium text-sm">{item.price?.toLocaleString()} đ</span>
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-500 flex-shrink-0"
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.productId)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -535,8 +910,13 @@ export default function POSPage() {
                 variant="outline"
                 className="w-full justify-start h-10 bg-blue-50 hover:bg-blue-100 border-blue-200"
                 onClick={() => setIsCustomerDialogOpen(true)}
+                disabled={loading.customers}
               >
-                <UserCircle className="mr-2 h-5 w-5 text-blue-500" />
+                {loading.customers ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <UserCircle className="mr-2 h-5 w-5 text-blue-500" />
+                )}
                 {selectedCustomer ? selectedCustomer.name : "Chọn khách hàng"}
               </Button>
 
@@ -544,8 +924,13 @@ export default function POSPage() {
                 variant="outline"
                 className="w-full justify-start h-10 bg-blue-50 hover:bg-blue-100 border-blue-200"
                 onClick={() => setIsTableDialogOpen(true)}
+                disabled={loading.tables}
               >
-                <CoffeeIcon className="mr-2 h-5 w-5 text-amber-600" />
+                {loading.tables ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CoffeeIcon className="mr-2 h-5 w-5 text-amber-600" />
+                )}
                 {selectedTable ? selectedTable.name : "Chọn bàn"}
               </Button>
 
@@ -569,15 +954,22 @@ export default function POSPage() {
               <DialogDescription>Chọn bàn cho đơn hàng này</DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <TableManagement
-                tables={initialTables}
-                onTableSelect={(table) => {
-                  setSelectedTable(table)
-                  setIsTableDialogOpen(false)
-                }}
-                selectable={true}
-                editable={false}
-              />
+              {loading.tables ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  <span className="ml-3">Đang tải danh sách bàn...</span>
+                </div>
+              ) : (
+                <TableManagement
+                  tables={tables}
+                  onTableSelect={(table) => {
+                    setSelectedTable(table)
+                    setIsTableDialogOpen(false)
+                  }}
+                  selectable={true}
+                  editable={false}
+                />
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -590,59 +982,135 @@ export default function POSPage() {
               <DialogDescription>Tìm kiếm và chọn khách hàng</DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <div className="mb-4 flex items-center gap-2 border border-gray-200 rounded-md p-2">
-                <Search className="h-4 w-4 text-gray-400" />
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-md p-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={() => setIsAddCustomerDialogOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Thêm mới
+                </Button>
+              </div>
+              {loading.customers ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  <span className="ml-3">Đang tải danh sách khách hàng...</span>
+                </div>
+              ) : (
+                <div className="max-h-[300px] overflow-auto">
+                  {filteredCustomers.length === 0 ? (
+                    <div className="flex h-20 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 text-center text-gray-400">
+                      <User className="mb-1 h-5 w-5" />
+                      <p className="text-sm">Không tìm thấy khách hàng</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredCustomers.map((customer) => (
+                        <div
+                          key={customer._id}
+                          className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
+                          onClick={() => {
+                            setSelectedCustomer(customer)
+                            setIsCustomerDialogOpen(false)
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                              <UserCircle className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{customer.name}</div>
+                              <div className="text-sm text-gray-500">{customer.phone}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center text-sm text-amber-600">
+                              <BadgePercent className="h-3.5 w-3.5 mr-1" />
+                              {customer.points} điểm
+                            </div>
+                            {customer.discount > 0 && (
+                              <div className="text-xs text-green-600 flex items-center justify-end mt-1">
+                                <Percent className="h-3 w-3 mr-1" />
+                                Giảm {customer.discount.toLocaleString()} đ
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog thêm khách hàng mới */}
+        <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+          <DialogContent className="[&>div]:backdrop-blur-sm [&>div]:bg-white/80">
+            <DialogHeader>
+              <DialogTitle>Thêm khách hàng mới</DialogTitle>
+              <DialogDescription>Nhập thông tin chi tiết của khách hàng</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="customer-name" className="text-gray-700">
+                  Họ và tên <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
-                  value={customerSearchTerm}
-                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                  className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  id="customer-name"
+                  value={newCustomer.name}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  placeholder="Nhập họ và tên"
+                  className="border-gray-200"
                 />
               </div>
-              <div className="max-h-[300px] overflow-auto">
-                {filteredCustomers.length === 0 ? (
-                  <div className="flex h-20 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 text-center text-gray-400">
-                    <User className="mb-1 h-5 w-5" />
-                    <p className="text-sm">Không tìm thấy khách hàng</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredCustomers.map((customer) => (
-                      <div
-                        key={customer.id}
-                        className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 p-3 hover:bg-gray-50"
-                        onClick={() => {
-                          setSelectedCustomer(customer)
-                          setIsCustomerDialogOpen(false)
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                            <UserCircle className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{customer.name}</div>
-                            <div className="text-sm text-gray-500">{customer.phone}</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center text-sm text-amber-600">
-                            <BadgePercent className="h-3.5 w-3.5 mr-1" />
-                            {customer.points} điểm
-                          </div>
-                          {customer.discount > 0 && (
-                            <div className="text-xs text-green-600 flex items-center justify-end mt-1">
-                              <Percent className="h-3 w-3 mr-1" />
-                              Giảm {customer.discount.toLocaleString()} đ
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="grid gap-2">
+                <Label htmlFor="customer-phone" className="text-gray-700">
+                  Số điện thoại <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="customer-phone"
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  placeholder="Nhập số điện thoại"
+                  className="border-gray-200"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="customer-address" className="text-gray-700">
+                  Địa chỉ
+                </Label>
+                <Input
+                  id="customer-address"
+                  value={newCustomer.address}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                  placeholder="Nhập địa chỉ"
+                  className="border-gray-200"
+                />
               </div>
             </div>
+            <DialogFooter>
+              <Button variant="outline" className="border-gray-200" onClick={() => setIsAddCustomerDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button
+                onClick={handleAddCustomer}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              >
+                Thêm khách hàng
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

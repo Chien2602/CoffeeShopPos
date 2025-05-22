@@ -53,9 +53,21 @@ const getTable = async (req, res) => {
     }
 }
 
+const getTableById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const table = await Table.findById(id);
+        res.status(200).json(table);
+    }
+    catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
 module.exports = {
     createTable,
     updateTable,
     deleteTable,
     getTable,
+    getTableById
 };

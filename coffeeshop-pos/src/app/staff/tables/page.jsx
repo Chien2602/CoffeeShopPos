@@ -1,42 +1,177 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TableManagement } from "@/components/table-management"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Coffee, Users, Clock, Info } from "lucide-react"
-
-// Dữ liệu mẫu cho bàn
-const initialTables = [
-  { id: 1, name: "Bàn 1", capacity: 4, status: "available" },
-  { id: 2, name: "Bàn 2", capacity: 2, status: "available" },
-  { id: 3, name: "Bàn 3", capacity: 6, status: "occupied", customer: "Nguyễn Văn A", timeOccupied: "14:30" },
-  { id: 4, name: "Bàn 4", capacity: 4, status: "available" },
-  { id: 5, name: "Bàn 5", capacity: 8, status: "reserved", customer: "Trần Thị B", timeOccupied: "18:00" },
-  { id: 6, name: "Bàn 6", capacity: 2, status: "available" },
-  { id: 7, name: "Bàn 7", capacity: 4, status: "cleaning" },
-  { id: 8, name: "Bàn 8", capacity: 6, status: "available" },
-  { id: 9, name: "Bàn 9", capacity: 2, status: "occupied", customer: "Lê Văn C", timeOccupied: "15:45" },
-  { id: 10, name: "Bàn 10", capacity: 8, status: "available" },
-  { id: 11, name: "Bàn 11", capacity: 4, status: "available" },
-  { id: 12, name: "Bàn 12", capacity: 2, status: "reserved", customer: "Phạm Thị D", timeOccupied: "19:30" },
-]
+import { Coffee, Users, Clock, Info, Plus } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function TablesPage() {
-  const [tables, setTables] = useState(initialTables)
+  const [tables, setTables] = useState([])
   const [statusFilter, setStatusFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [selectedTable, setSelectedTable] = useState(null)
+  const [newTable, setNewTable] = useState({
+    tableNumber: "",
+    capacity: "",
+    isActive: "Trống"
+  })
+  const token = sessionStorage.getItem('authToken')
+  
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/tables', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (!response.ok) {
+          throw new Error('Failed to fetch tables')
+        }
+        const data = await response.json()
+        console.log(data)
+        setTables(data)
+      } catch (error) {
+        console.error('Error fetching tables:', error)
+        toast({
+          title: "Lỗi",
+          description: error.message,
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (token) {
+      fetchTables()
+    }
+  }, [token])
+
+  // Update table status
+  const handleTableStatusChange = async (tableId, tableData) => {
+    try {
+      // If tableId is null, this is an add table request
+      if (!tableId) {
+        // Check if table number already exists
+        const existingTable = tables.find(table => table.tableNumber === tableData.tableNumber)
+        if (existingTable) {
+          toast({
+            title: "Lỗi",
+            description: `Bàn số ${tableData.tableNumber} đã tồn tại`,
+            variant: "destructive"
+          })
+          return
+        }
+
+        const response = await fetch('http://localhost:3001/tables', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(tableData)
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Failed to add table')
+        }
+
+        const data = await response.json()
+        setTables([...tables, data])
+        setIsAddDialogOpen(false)
+        toast({
+          title: "Thành công",
+          description: "Thêm bàn mới thành công"
+        })
+        return
+      }
+
+      // This is an update table request
+      const tableToUpdate = tables.find(table => table._id === tableId)
+      if (!tableToUpdate) {
+        throw new Error('Table not found')
+      }
+
+      const response = await fetch(`http://localhost:3001/tables/${tableId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          tableNumber: tableToUpdate.tableNumber,
+          capacity: tableToUpdate.capacity,
+          isActive: tableData
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update table status')
+      }
+
+      const data = await response.json()
+      console.log(data)
+      // Update local state with the updated table from response
+      setTables(tables.map(table => 
+        table._id === tableId ? data.table : table
+      ))
+      toast({
+        title: "Thành công",
+        description: data.message || "Cập nhật trạng thái bàn thành công"
+      })
+    } catch (error) {
+      console.error('Error updating table status:', error)
+      toast({
+        title: "Lỗi",
+        description: error.message,
+        variant: "destructive"
+      })
+    }
+  }
 
   // Lọc bàn theo trạng thái
   const filteredTables = tables.filter((table) => {
-    return statusFilter === "all" || table.status === statusFilter
+    return statusFilter === "all" || table.isActive === statusFilter
   })
 
   // Đếm số lượng bàn theo trạng thái
-  const availableCount = tables.filter((table) => table.status === "available").length
-  const occupiedCount = tables.filter((table) => table.status === "occupied").length
-  const reservedCount = tables.filter((table) => table.status === "reserved").length
-  const cleaningCount = tables.filter((table) => table.status === "cleaning").length
+  const availableCount = tables.filter((table) => table.isActive === "Trống").length
+  const occupiedCount = tables.filter((table) => table.isActive === "Đang phục vụ").length
+  const reservedCount = tables.filter((table) => table.isActive === "Đã đặt trước").length
+  const cleaningCount = tables.filter((table) => table.isActive === "Đang dọn dẹp").length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-6 bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
@@ -45,6 +180,96 @@ export default function TablesPage() {
           <h2 className="text-3xl font-bold tracking-tight text-gray-800">Quản lý bàn</h2>
           <p className="mt-1 text-gray-500">Quản lý và theo dõi trạng thái các bàn trong cửa hàng</p>
         </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open)
+          if (!open) {
+            setSelectedTable(null)
+            setNewTable({
+              tableNumber: "",
+              capacity: "",
+              isActive: "Trống"
+            })
+          }
+        }}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+              <Plus className="mr-2 h-4 w-4" />
+              Thêm bàn mới
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedTable ? 'Cập nhật bàn' : 'Thêm bàn mới'}</DialogTitle>
+              <DialogDescription>
+                {selectedTable ? 'Cập nhật thông tin bàn' : 'Nhập thông tin bàn mới cần thêm vào hệ thống'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="tableNumber" className="text-right">
+                  Số bàn
+                </Label>
+                <Input
+                  id="tableNumber"
+                  value={newTable.tableNumber}
+                  onChange={(e) => setNewTable({ ...newTable, tableNumber: e.target.value })}
+                  className="col-span-3"
+                  placeholder="VD: 1"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="capacity" className="text-right">
+                  Sức chứa
+                </Label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  value={newTable.capacity}
+                  onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
+                  className="col-span-3"
+                  placeholder="VD: 4"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="isActive" className="text-right">
+                  Trạng thái
+                </Label>
+                <Select
+                  value={newTable.isActive}
+                  onValueChange={(value) => setNewTable({ ...newTable, isActive: value })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Chọn trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Trống">Trống</SelectItem>
+                    <SelectItem value="Đã đặt trước">Đã đặt trước</SelectItem>
+                    <SelectItem value="Đang phục vụ">Đang phục vụ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsAddDialogOpen(false)
+                setSelectedTable(null)
+                setNewTable({
+                  tableNumber: "",
+                  capacity: "",
+                  isActive: "Trống"
+                })
+              }}>
+                Hủy
+              </Button>
+              <Button 
+                onClick={() => handleTableStatusChange(selectedTable, newTable.isActive)}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              >
+                {selectedTable ? 'Cập nhật' : 'Thêm bàn'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -154,7 +379,11 @@ export default function TablesPage() {
                     <p className="mt-1 text-sm">Không tìm thấy bàn nào với trạng thái đã chọn</p>
                   </div>
                 ) : (
-                  <TableManagement tables={filteredTables} onTablesChange={setTables} editable={true} />
+                  <TableManagement 
+                    tables={filteredTables} 
+                    onTableStatusChange={handleTableStatusChange}
+                    editable={true} 
+                  />
                 )}
               </div>
             </TabsContent>

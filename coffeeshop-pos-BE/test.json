@@ -1,0 +1,26 @@
+[
+    {
+        "title": "Cà phê",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661914/hinh-anh-ly-cafe-dep-1536x1025_nh6vvi.jpg"
+    },
+    {
+        "title": "Trà",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661915/tra-hoa-hong-nam-viet-quat-3-FILEminimizer-1_w2pbge.jpg"
+    },
+    {
+        "title": "Nước ép",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661914/nuoc-ep-trai-cay_wpzzgj.jpg"
+    },
+    {
+        "title": "Trà sữa",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661914/image-1512082963469_qlquu9.webp"
+    },
+    {
+        "title": "Sinh tố",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661914/sinh_to_moi_ngay_o2bzt3.jpg"
+    },
+    {
+        "title": "Soda",
+        "thumbnail": "https://res.cloudinary.com/dxkqibtzv/image/upload/v1747661914/soda-trai-cay_shwsbl.webp"
+    }
+]

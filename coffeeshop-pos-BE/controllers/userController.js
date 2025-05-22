@@ -152,7 +152,7 @@ const getUserById = async (req, res) => {
         if (!id) {
             return res.status(400).json({ message: "Vui lòng nhập id" });
         }
-        const user = await User.findById(id);
+        const user = await User.findById({_id: id});
         res.status(200).json(user);
     } catch (error) {
         res.status(500).json({ message: error.message });

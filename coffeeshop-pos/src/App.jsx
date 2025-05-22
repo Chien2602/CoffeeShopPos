@@ -1,6 +1,6 @@
 import React from 'react'
 import { Routes, Route, Outlet } from 'react-router-dom'
-import LoginPage from './app/login/page'
+import AuthPage from './app/auth/page'
 import AdminDashboard from './app/admin/page'
 import CustomersPage from './app/admin/customers/page'
 import ProductsPage from './app/admin/products/page'
@@ -16,7 +16,7 @@ import { StaffSidebar } from './components/staff-sidebar'
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<AuthPage />} />
       <Route path="/admin" element={
         <div className="flex h-screen">
           <AdminSidebar />
