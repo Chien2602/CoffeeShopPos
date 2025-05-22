@@ -15,23 +15,34 @@ import {
 } from "chart.js"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
 import { ArrowUpIcon, ArrowDownIcon, Coffee, DollarSign, ShoppingCart, Users } from "lucide-react"
 
 // Đăng ký các thành phần cần thiết cho Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend)
 
 const API_URL = "http://localhost:3001"
-const token = sessionStorage.getItem("authToken")
 
 // API functions
 const fetchDashboardStats = async () => {
   try {
+    const token = sessionStorage.getItem("authToken")
+    if (!token) {
+      throw new Error('No authentication token found')
+    }
+
     const response = await fetch(`${API_URL}/dashboard/stats`, {
       headers: {
         'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     })
-    if (!response.ok) throw new Error('Failed to fetch dashboard stats')
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || 'Failed to fetch dashboard stats')
+    }
+    
     return await response.json()
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
@@ -41,12 +52,23 @@ const fetchDashboardStats = async () => {
 
 const fetchRevenueData = async () => {
   try {
+    const token = sessionStorage.getItem("authToken")
+    if (!token) {
+      throw new Error('No authentication token found')
+    }
+
     const response = await fetch(`${API_URL}/dashboard/revenue`, {
       headers: {
         'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     })
-    if (!response.ok) throw new Error('Failed to fetch revenue data')
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || 'Failed to fetch revenue data')
+    }
+    
     return await response.json()
   } catch (error) {
     console.error('Error fetching revenue data:', error)
@@ -89,6 +111,12 @@ export default function AdminDashboard() {
         setIsLoading(true)
         setError(null)
 
+        // Kiểm tra token trước khi gọi API
+        const token = sessionStorage.getItem("authToken")
+        if (!token) {
+          throw new Error('No authentication token found')
+        }
+
         // Fetch dashboard data in parallel
         const [statsData, revenueData] = await Promise.all([
           fetchDashboardStats(),
@@ -97,29 +125,29 @@ export default function AdminDashboard() {
 
         // Update stats
         setStats({
-          totalRevenue: statsData.totalRevenue,
-          totalOrders: statsData.totalOrders,
-          totalProducts: statsData.totalProducts,
-          newCustomers: statsData.newCustomers,
-          revenueChange: statsData.revenueChange,
-          ordersChange: statsData.ordersChange,
-          productsChange: statsData.productsChange,
-          customersChange: statsData.customersChange
+          totalRevenue: statsData.totalRevenue || 0,
+          totalOrders: statsData.totalOrders || 0,
+          totalProducts: statsData.totalProducts || 0,
+          newCustomers: statsData.newCustomers || 0,
+          revenueChange: statsData.revenueChange || 0,
+          ordersChange: statsData.ordersChange || 0,
+          productsChange: statsData.productsChange || 0,
+          customersChange: statsData.customersChange || 0
         })
 
         // Update revenue chart data
         setRevenueData(prev => ({
           ...prev,
-          labels: revenueData.labels,
+          labels: revenueData.labels || [],
           datasets: [{
             ...prev.datasets[0],
-            data: revenueData.data
+            data: revenueData.data || []
           }]
         }))
 
       } catch (err) {
         console.error('Error loading dashboard data:', err)
-        setError(err.message)
+        setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu')
       } finally {
         setIsLoading(false)
       }
@@ -147,7 +175,7 @@ export default function AdminDashboard() {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive">Có lỗi xảy ra khi tải dữ liệu</p>
+          <p className="text-destructive">{error}</p>
           <Button
             variant="outline"
             className="mt-4"
