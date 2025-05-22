@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { Edit, MoreHorizontal, Plus, Search, Trash2, Upload, X, ImageIcon, Printer } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import { Edit, MoreHorizontal, Plus, Search, Trash2, Upload, X, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -21,127 +21,227 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// Dữ liệu mẫu cho sản phẩm
-const initialProducts = [
-  {
-    id: 1,
-    name: "Cà phê đen",
-    category: "Cà phê",
-    price: 25000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 2,
-    name: "Cà phê sữa",
-    category: "Cà phê",
-    price: 30000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 3,
-    name: "Trà sữa trân châu",
-    category: "Trà sữa",
-    price: 35000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 4,
-    name: "Trà sữa matcha",
-    category: "Trà sữa",
-    price: 35000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 5,
-    name: "Nước ép cam",
-    category: "Nước ép",
-    price: 40000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 6,
-    name: "Nước ép táo",
-    category: "Nước ép",
-    price: 40000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 7,
-    name: "Sinh tố xoài",
-    category: "Sinh tố",
-    price: 45000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-  {
-    id: 8,
-    name: "Sinh tố dâu",
-    category: "Sinh tố",
-    price: 45000,
-    image: "/placeholder.svg?height=50&width=50",
-    status: "Còn hàng",
-  },
-]
+// API endpoints
+const API_URL = "http://localhost:3001"
+const token = sessionStorage.getItem("authToken")
+
+// API functions
+const fetchProducts = async () => {
+  const response = await fetch(`${API_URL}/products`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  })
+  if (!response.ok) {
+    throw new Error('Failed to fetch products')
+  }
+  const result = await response.json()
+  console.log('API Response:', result)
+  return result || [] // Return the array directly since it's already an array of products
+}
+
+const fetchCategories = async () => {
+  const response = await fetch(`${API_URL}/categories`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  })
+  if (!response.ok) {
+    throw new Error('Failed to fetch categories')
+  }
+  const result = await response.json()
+  console.log('Categories:', result)
+  return result || []
+}
+
+const addProduct = async (productData) => {
+  const response = await fetch(`${API_URL}/products`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ...productData,
+      isActive: "Còn hàng",
+      isDeleted: false,
+      stock: 100
+    }),
+  })
+  if (!response.ok) {
+    throw new Error('Failed to add product')
+  }
+  const result = await response.json()
+  console.log('Add Product Response:', result)
+  return result // Return the new product object directly
+}
+
+const updateProduct = async (productId, productData) => {
+  const response = await fetch(`${API_URL}/products/${productId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(productData),
+  })
+  if (!response.ok) {
+    throw new Error('Failed to update product')
+  }
+  const result = await response.json()
+  console.log('Update Product Response:', result)
+  return result // Return the updated product object directly
+}
+
+const deleteProduct = async (productId) => {
+  const response = await fetch(`${API_URL}/products/${productId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  })
+  if (!response.ok) {
+    throw new Error('Failed to delete product')
+  }
+  return response.json()
+}
+
+// Add Cloudinary upload function
+const uploadToCloudinary = async (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', 'coffeeshop') // Replace with your upload preset
+
+  try {
+    const response = await fetch('https://api.cloudinary.com/v1_1/dxkqibtzv/image/upload', {
+      method: 'POST',
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload image')
+    }
+    
+    const data = await response.json()
+    return data.secure_url
+  } catch (error) {
+    console.error('Error uploading to Cloudinary:', error)
+    throw error
+  }
+}
 
 export default function ProductsPage() {
   const { toast } = useToast()
-  const [products, setProducts] = useState(initialProducts)
+  const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isPrintLabelDialogOpen, setIsPrintLabelDialogOpen] = useState(false)
   const [currentProduct, setCurrentProduct] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const [newProduct, setNewProduct] = useState({
-    name: "",
-    category: "",
+    title: "",
+    categoryId: "",
     price: "",
-    status: "Còn hàng",
-    image: "/placeholder.svg?height=50&width=50",
+    isActive: "Còn hàng",
+    isDeleted: false,
+    stock: 100,
+    thumbnail: "/placeholder.svg?height=50&width=50",
   })
   const [previewImage, setPreviewImage] = useState(null)
   const fileInputRef = useRef(null)
   const editFileInputRef = useRef(null)
 
+  // Fetch products and categories on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+        const [productsData, categoriesData] = await Promise.all([
+          fetchProducts(),
+          fetchCategories()
+        ])
+        setProducts(productsData)
+        setCategories(categoriesData)
+        setError(null)
+      } catch (err) {
+        console.error('Error loading data:', err)
+        setError(err.message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
   // Lọc sản phẩm theo từ khóa tìm kiếm và danh mục
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase())
+      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.categoryId.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || product.categoryId === categoryFilter
 
     return matchesSearch && matchesCategory
   })
 
-  // Xử lý tải lên hình ảnh
-  const handleImageUpload = (e, isEdit = false) => {
+  // Tính toán phân trang
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentProducts = filteredProducts.slice(startIndex, endIndex)
+
+  // Reset về trang 1 khi thay đổi bộ lọc
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, categoryFilter])
+
+  // Update handleImageUpload function
+  const handleImageUpload = async (e, isEdit = false) => {
     const file = e.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result
+      try {
+        // Show loading state
         if (isEdit) {
-          setCurrentProduct({ ...currentProduct, image: result })
+          setCurrentProduct(prev => ({ ...prev, isUploading: true }))
         } else {
-          setNewProduct({ ...newProduct, image: result })
-          setPreviewImage(result)
+          setNewProduct(prev => ({ ...prev, isUploading: true }))
+        }
+
+        // Upload to Cloudinary
+        const imageUrl = await uploadToCloudinary(file)
+
+        // Update state with the Cloudinary URL
+        if (isEdit) {
+          setCurrentProduct(prev => ({ ...prev, thumbnail: imageUrl, isUploading: false }))
+        } else {
+          setNewProduct(prev => ({ ...prev, thumbnail: imageUrl, isUploading: false }))
+          setPreviewImage(imageUrl)
+        }
+      } catch (error) {
+        toast({
+          title: "Lỗi",
+          description: "Không thể tải lên hình ảnh",
+          variant: "destructive",
+        })
+        if (isEdit) {
+          setCurrentProduct(prev => ({ ...prev, isUploading: false }))
+        } else {
+          setNewProduct(prev => ({ ...prev, isUploading: false }))
         }
       }
-      reader.readAsDataURL(file)
     }
   }
 
-  // Xử lý thêm sản phẩm mới
-  const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.category || !newProduct.price) {
+  // Update handleAddProduct function
+  const handleAddProduct = async () => {
+    if (!newProduct.title || !newProduct.categoryId || !newProduct.price) {
       toast({
         title: "Lỗi",
         description: "Vui lòng điền đầy đủ thông tin sản phẩm",
@@ -150,64 +250,138 @@ export default function ProductsPage() {
       return
     }
 
-    const newId = Math.max(...products.map((p) => p.id)) + 1
-    const productToAdd = {
-      id: newId,
-      name: newProduct.name,
-      category: newProduct.category,
-      price: Number.parseInt(newProduct.price),
-      image: newProduct.image,
-      status: newProduct.status,
+    try {
+      const productToAdd = {
+        title: newProduct.title,
+        categoryId: newProduct.categoryId,
+        price: Number.parseInt(newProduct.price),
+        thumbnail: newProduct.thumbnail,
+        isActive: newProduct.isActive,
+        isDeleted: false,
+        stock: newProduct.stock
+      }
+
+      const result = await addProduct(productToAdd)
+      setProducts([...products, result])
+      setNewProduct({
+        title: "",
+        categoryId: "",
+        price: "",
+        isActive: "Còn hàng",
+        isDeleted: false,
+        stock: 100,
+        thumbnail: "/placeholder.svg?height=50&width=50",
+      })
+      setPreviewImage(null)
+      setIsAddDialogOpen(false)
+
+      toast({
+        title: "Thành công",
+        description: "Đã thêm sản phẩm mới",
+      })
+    } catch (err) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể thêm sản phẩm mới",
+        variant: "destructive",
+      })
     }
-
-    setProducts([...products, productToAdd])
-    setNewProduct({
-      name: "",
-      category: "",
-      price: "",
-      status: "Còn hàng",
-      image: "/placeholder.svg?height=50&width=50",
-    })
-    setPreviewImage(null)
-    setIsAddDialogOpen(false)
-
-    toast({
-      title: "Thành công",
-      description: "Đã thêm sản phẩm mới",
-    })
   }
 
   // Xử lý cập nhật sản phẩm
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!currentProduct) return
 
-    const updatedProducts = products.map((product) => (product.id === currentProduct.id ? currentProduct : product))
+    try {
+      const productToUpdate = {
+        title: currentProduct.title,
+        categoryId: currentProduct.categoryId,
+        price: currentProduct.price,
+        thumbnail: currentProduct.thumbnail,
+        isActive: currentProduct.isActive,
+        stock: currentProduct.stock
+      }
 
-    setProducts(updatedProducts)
-    setIsEditDialogOpen(false)
+      const result = await updateProduct(currentProduct._id, productToUpdate)
+      const updatedProducts = products.map((product) => 
+        product._id === currentProduct._id ? result : product // Use the updated product directly
+      )
 
-    toast({
-      title: "Thành công",
-      description: "Đã cập nhật sản phẩm",
-    })
+      setProducts(updatedProducts)
+      setIsEditDialogOpen(false)
+
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật sản phẩm",
+      })
+    } catch (err) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể cập nhật sản phẩm",
+        variant: "destructive",
+      })
+    }
   }
 
   // Xử lý xóa sản phẩm
-  const handleDeleteProduct = () => {
+  const handleDeleteProduct = async () => {
     if (!currentProduct) return
 
-    const updatedProducts = products.filter((product) => product.id !== currentProduct.id)
-    setProducts(updatedProducts)
-    setIsDeleteDialogOpen(false)
+    try {
+      await deleteProduct(currentProduct._id)
+      const updatedProducts = products.filter((product) => product._id !== currentProduct._id)
+      setProducts(updatedProducts)
+      setIsDeleteDialogOpen(false)
 
-    toast({
-      title: "Thành công",
-      description: "Đã xóa sản phẩm",
-    })
+      toast({
+        title: "Thành công",
+        description: "Đã xóa sản phẩm",
+      })
+    } catch (err) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa sản phẩm",
+        variant: "destructive",
+      })
+    }
   }
 
   // Lấy danh sách các danh mục duy nhất
-  const categories = ["all", ...Array.from(new Set(products.map((product) => product.category)))]
+  const categoryFilters = ["all", ...Array.from(new Set(products.map((product) => product.categoryId)))]
+
+  // Helper function to get category name by ID
+  const getCategoryName = (categoryId) => {
+    const category = categories.find(cat => cat._id === categoryId)
+    return category ? category.title : categoryId
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Có lỗi xảy ra khi tải dữ liệu</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-4 p-6">
@@ -240,9 +414,14 @@ export default function ProductsPage() {
                       className="flex h-full w-full cursor-pointer flex-col items-center justify-center"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      {previewImage ? (
+                      {newProduct.isUploading ? (
+                        <div className="flex flex-col items-center">
+                          <div className="mb-2 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                          <p className="text-xs text-gray-500">Đang tải lên...</p>
+                        </div>
+                      ) : previewImage ? (
                         <img
-                          src={previewImage || "/placeholder.svg"}
+                          src={previewImage}
                           alt="Preview"
                           className="h-full w-full object-contain"
                         />
@@ -253,13 +432,13 @@ export default function ProductsPage() {
                         </>
                       )}
                     </div>
-                    {previewImage && (
+                    {previewImage && !newProduct.isUploading && (
                       <button
                         className="absolute right-1 top-1 rounded-full bg-white p-1 shadow-md"
                         onClick={(e) => {
                           e.stopPropagation()
                           setPreviewImage(null)
-                          setNewProduct({ ...newProduct, image: "/placeholder.svg?height=50&width=50" })
+                          setNewProduct({ ...newProduct, thumbnail: "/placeholder.svg?height=50&width=50" })
                         }}
                       >
                         <X className="h-4 w-4 text-gray-500" />
@@ -268,13 +447,13 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="name" className="text-sm font-medium">
+                  <Label htmlFor="title" className="text-sm font-medium">
                     Tên sản phẩm <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="name"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    id="title"
+                    value={newProduct.title}
+                    onChange={(e) => setNewProduct({ ...newProduct, title: e.target.value })}
                     placeholder="Nhập tên sản phẩm"
                     className="border-gray-300"
                   />
@@ -284,19 +463,18 @@ export default function ProductsPage() {
                     Danh mục <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={newProduct.category}
-                    onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}
+                    value={newProduct.categoryId}
+                    onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cà phê">Cà phê</SelectItem>
-                      <SelectItem value="Trà sữa">Trà sữa</SelectItem>
-                      <SelectItem value="Nước ép">Nước ép</SelectItem>
-                      <SelectItem value="Sinh tố">Sinh tố</SelectItem>
-                      <SelectItem value="Soda">Soda</SelectItem>
-                      <SelectItem value="Trà">Trà</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
+                          {category.title}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -318,8 +496,8 @@ export default function ProductsPage() {
                     Trạng thái
                   </Label>
                   <Select
-                    value={newProduct.status}
-                    onValueChange={(value) => setNewProduct({ ...newProduct, status: value })}
+                    value={newProduct.isActive}
+                    onValueChange={(value) => setNewProduct({ ...newProduct, isActive: value })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue placeholder="Chọn trạng thái" />
@@ -366,9 +544,9 @@ export default function ProductsPage() {
           <Tabs defaultValue="all" value={categoryFilter} onValueChange={setCategoryFilter}>
             <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <TabsList className="flex-wrap">
-                {categories.map((category) => (
+                {categoryFilters.map((category) => (
                   <TabsTrigger key={category} value={category}>
-                    {category === "all" ? "Tất cả" : category}
+                    {category === "all" ? "Tất cả" : getCategoryName(category)}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -398,34 +576,34 @@ export default function ProductsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.length === 0 ? (
+                    {currentProducts.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center">
                           Không tìm thấy sản phẩm nào
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredProducts.map((product) => (
-                        <TableRow key={product.id}>
+                      currentProducts.map((product) => (
+                        <TableRow key={product._id}>
                           <TableCell>
                             <img
-                              src={product.image || "/placeholder.svg"}
-                              alt={product.name}
+                              src={product.thumbnail || "/placeholder.svg"}
+                              alt={product.title}
                               className="h-10 w-10 rounded-md object-cover"
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell>{product.category}</TableCell>
+                          <TableCell className="font-medium">{product.title}</TableCell>
+                          <TableCell>{getCategoryName(product.categoryId)}</TableCell>
                           <TableCell>{product.price.toLocaleString()}</TableCell>
                           <TableCell>
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                product.status === "Còn hàng"
+                                product.isActive === "Còn hàng"
                                   ? "bg-green-100 text-green-800"
                                   : "bg-red-100 text-red-800"
                               }`}
                             >
-                              {product.status}
+                              {product.isActive}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
@@ -447,15 +625,6 @@ export default function ProductsPage() {
                                   Chỉnh sửa
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    setCurrentProduct(product)
-                                    setIsPrintLabelDialogOpen(true)
-                                  }}
-                                >
-                                  <Printer className="mr-2 h-4 w-4" />
-                                  In nhãn sản phẩm
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
                                   className="text-red-600"
                                   onClick={() => {
                                     setCurrentProduct(product)
@@ -474,6 +643,46 @@ export default function ProductsPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} của {filteredProducts.length} sản phẩm
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Trước
+                    </Button>
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-8"
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Sau
+                    </Button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -502,10 +711,10 @@ export default function ProductsPage() {
                       className="flex h-full w-full cursor-pointer items-center justify-center"
                       onClick={() => editFileInputRef.current?.click()}
                     >
-                      {currentProduct.image ? (
+                      {currentProduct.thumbnail ? (
                         <img
-                          src={currentProduct.image || "/placeholder.svg"}
-                          alt={currentProduct.name}
+                          src={currentProduct.thumbnail || "/placeholder.svg"}
+                          alt={currentProduct.title}
                           className="h-full w-full object-contain"
                         />
                       ) : (
@@ -518,13 +727,13 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-name" className="text-sm font-medium">
+                  <Label htmlFor="edit-title" className="text-sm font-medium">
                     Tên sản phẩm <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="edit-name"
-                    value={currentProduct.name}
-                    onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
+                    id="edit-title"
+                    value={currentProduct.title}
+                    onChange={(e) => setCurrentProduct({ ...currentProduct, title: e.target.value })}
                     className="border-gray-300"
                   />
                 </div>
@@ -533,19 +742,18 @@ export default function ProductsPage() {
                     Danh mục <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={currentProduct.category}
-                    onValueChange={(value) => setCurrentProduct({ ...currentProduct, category: value })}
+                    value={currentProduct.categoryId}
+                    onValueChange={(value) => setCurrentProduct({ ...currentProduct, categoryId: value })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cà phê">Cà phê</SelectItem>
-                      <SelectItem value="Trà sữa">Trà sữa</SelectItem>
-                      <SelectItem value="Nước ép">Nước ép</SelectItem>
-                      <SelectItem value="Sinh tố">Sinh tố</SelectItem>
-                      <SelectItem value="Soda">Soda</SelectItem>
-                      <SelectItem value="Trà">Trà</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category._id} value={category._id}>
+                          {category.title}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -566,8 +774,8 @@ export default function ProductsPage() {
                     Trạng thái
                   </Label>
                   <Select
-                    value={currentProduct.status}
-                    onValueChange={(value) => setCurrentProduct({ ...currentProduct, status: value })}
+                    value={currentProduct.isActive}
+                    onValueChange={(value) => setCurrentProduct({ ...currentProduct, isActive: value })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue />
@@ -622,41 +830,6 @@ export default function ProductsPage() {
               Xóa sản phẩm
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog in nhãn sản phẩm */}
-      <Dialog open={isPrintLabelDialogOpen} onOpenChange={setIsPrintLabelDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>In nhãn sản phẩm</DialogTitle>
-            <DialogDescription>Xem trước và in nhãn sản phẩm</DialogDescription>
-          </DialogHeader>
-          {currentProduct && (
-            <div className="space-y-4">
-              <div className="rounded-md border p-4">
-                <div className="flex flex-col items-center">
-                  <img
-                    src={currentProduct.image || "/placeholder.svg"}
-                    alt={currentProduct.name}
-                    className="mb-2 h-24 w-24 rounded-md object-contain"
-                  />
-                  <h3 className="text-lg font-bold">{currentProduct.name}</h3>
-                  <p className="text-sm text-gray-500">{currentProduct.category}</p>
-                  <div className="mt-2 text-xl font-bold text-blue-600">
-                    {currentProduct.price.toLocaleString()} VNĐ
-                  </div>
-                  <div className="mt-1 text-xs text-gray-400">Mã SP: {currentProduct.id}</div>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={() => setIsPrintLabelDialogOpen(false)}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  In nhãn
-                </Button>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

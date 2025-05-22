@@ -12,7 +12,7 @@ import HistoryPage from './app/staff/history/page'
 import TablesPage from './app/staff/tables/page'
 import { AdminSidebar } from './components/admin-sidebar'
 import { StaffSidebar } from './components/staff-sidebar'
-
+import PrivateRoute from './protectedRoute'
 function App() {
   return (
     <Routes>
@@ -25,12 +25,12 @@ function App() {
           </main>
         </div>
       }>
-        <Route index element={<AdminDashboard />} />
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="staff" element={<StaffPage />} />
-        <Route path="customers" element={<CustomersPage />} />
+        <Route index element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+        <Route path="products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
+        <Route path="orders" element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
+        <Route path="payments" element={<PrivateRoute><PaymentsPage /></PrivateRoute>} />
+        <Route path="staff" element={<PrivateRoute><StaffPage /></PrivateRoute>} />
+        <Route path="customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
       </Route>
 
       <Route path="/staff" element={
@@ -41,9 +41,9 @@ function App() {
           </main>
         </div>
       }>
-        <Route index element={<StaffDashboard />} />
-        <Route path="tables" element={<TablesPage />} />
-        <Route path="history" element={<HistoryPage />} />
+        <Route index element={<PrivateRoute><StaffDashboard /></PrivateRoute>} />
+        <Route path="tables" element={<PrivateRoute><TablesPage /></PrivateRoute>} />
+        <Route path="history" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
       </Route>
     </Routes>
   )

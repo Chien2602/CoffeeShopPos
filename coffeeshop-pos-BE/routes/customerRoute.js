@@ -4,13 +4,14 @@ const {
     createCustomer,
     getCustomers,
     updateCustomer,
-    getCustomerById
+    getCustomerById,
+    deleteCustomer
 } = require('../controllers/customerController');
 const { verifyToken, isEmployee } = require('../middleware/authMiddleware');
 
-router.post('/', verifyToken, isEmployee, createCustomer);
-router.get('/', verifyToken, isEmployee, getCustomers);
-router.put('/:id', verifyToken, isEmployee, updateCustomer);
-router.get('/:id', verifyToken, isEmployee, getCustomerById);
-
+router.post('/', verifyToken, createCustomer);
+router.get('/', verifyToken, getCustomers);
+router.put('/:id', verifyToken, updateCustomer);
+router.get('/:id', verifyToken, getCustomerById);
+router.delete('/:id', verifyToken, deleteCustomer);
 module.exports = router;

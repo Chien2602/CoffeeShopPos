@@ -107,7 +107,7 @@ export default function AuthPage() {
         description: `Chào mừng ${data.name || loginData.fullname}`,
       });
 
-      if (data.role === "admin") {
+      if (data.user.role === "admin") {
         router("/admin");
       } else {
         router("/staff");

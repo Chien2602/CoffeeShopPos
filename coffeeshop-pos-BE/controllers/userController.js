@@ -12,7 +12,7 @@ const JWT_CONFIG = {
 
 const createUser = async (req, res) => {
     try {
-        const { fullname, email, password, phone, address, role, isActive, refreshToken } = req.body;
+        const { fullname, email, password, phone, address, role, isActive, refreshToken, position } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({
@@ -46,6 +46,7 @@ const createUser = async (req, res) => {
             role: role || "user",
             isActive: isActive !== undefined ? isActive : true,
             refreshToken: refreshToken || "",
+            position: position || "",
         });
 
         const userResponse = {
@@ -57,7 +58,8 @@ const createUser = async (req, res) => {
             role: user.role,
             isActive: user.isActive,
             createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            updatedAt: user.updatedAt,
+            position: user.position
         };
 
         res.status(201).json({
@@ -74,7 +76,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { fullname, email, password, phone, address, role, isActive, refreshToken } = req.body;
+        const { fullname, email, password, phone, address, role, isActive, refreshToken, position } = req.body;
 
         if (!id) {
             return res.status(400).json({
@@ -97,6 +99,8 @@ const updateUser = async (req, res) => {
         if (role !== undefined) updateData.role = role;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (refreshToken !== undefined) updateData.refreshToken = refreshToken;
+        if (position !== undefined) updateData.position = position;
+
 
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({

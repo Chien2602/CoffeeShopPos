@@ -28,12 +28,6 @@ const routes = [
     color: "text-pink-700",
   },
   {
-    label: "Thanh toán",
-    icon: CreditCard,
-    href: "/admin/payments",
-    color: "text-green-700",
-  },
-  {
     label: "Nhân viên",
     icon: Users,
     href: "/admin/staff",

@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
-        required: true,
         unique: true,
         trim: true
     },
@@ -19,7 +18,7 @@ const userSchema = new mongoose.Schema({
         trim: true,
         lowercase: true
     },
-    fullName: {
+    fullname: {
         type: String,
         required: true
     },
@@ -44,6 +43,10 @@ const userSchema = new mongoose.Schema({
     lastLogin: {
         type: Date,
         default: null
+    },
+    position: {
+        type: String,
+        required: false
     },
     refreshToken: {
         type: String,

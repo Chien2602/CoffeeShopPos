@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Edit, MoreHorizontal, Plus, Search, Trash2, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,78 +20,160 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 
-// Dữ liệu mẫu cho nhân viên
-const initialStaff = [
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    position: "Quản lý",
-    phone: "0901234567",
-    email: "nguyenvana@example.com",
-    status: "Đang làm việc",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    position: "Thu ngân",
-    phone: "0912345678",
-    email: "tranthib@example.com",
-    status: "Đang làm việc",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    position: "Pha chế",
-    phone: "0923456789",
-    email: "levanc@example.com",
-    status: "Đang làm việc",
-  },
-  {
-    id: 4,
-    name: "Phạm Thị D",
-    position: "Phục vụ",
-    phone: "0934567890",
-    email: "phamthid@example.com",
-    status: "Đang làm việc",
-  },
-  {
-    id: 5,
-    name: "Hoàng Văn E",
-    position: "Pha chế",
-    phone: "0945678901",
-    email: "hoangvane@example.com",
-    status: "Nghỉ việc",
-  },
-]
+// Add API endpoints
+const API_URL = "http://localhost:3001"
+const token = sessionStorage.getItem("authToken")
+
+// Add role mapping helper
+const getRoleDisplay = (role) => {
+  const roleMap = {
+    'manager': 'Quản lý',
+    'cashier': 'Thu ngân',
+    'barista': 'Pha chế',
+    'waiter': 'Phục vụ',
+    'employee': 'Nhân viên'
+  }
+  return roleMap[role] || role
+}
+
+// API functions
+const fetchStaff = async () => {
+  try {
+    const response = await fetch(`${API_URL}/users?role=employee`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      }
+    })
+    if (!response.ok) {
+      throw new Error('Failed to fetch staff')
+    }
+    const data = await response.json()
+    console.log('Fetched staff data:', data)
+    return data
+  } catch (error) {
+    console.error('Error fetching staff:', error)
+    throw error
+  }
+}
+
+const addStaff = async (staffData) => {
+  console.log('Adding staff with data:', staffData) // Debug log
+  const requestData = {
+    fullname: staffData.fullname,
+    position: staffData.position,
+    phone: staffData.phone,
+    email: staffData.email,
+    isActive: staffData.isActive,
+    role: 'employee',
+    password: '123456',
+  }
+  console.log('Request data:', requestData) // Debug log
+
+  const response = await fetch(`${API_URL}/users/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(requestData),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    console.error('Add staff failed:', errorData)
+    throw new Error(errorData.message || 'Failed to add staff')
+  }
+  const result = await response.json()
+  console.log('Add staff response:', result)
+  return result
+}
+
+const updateStaff = async (staffId, staffData) => {
+  console.log('Updating staff with data:', staffData) // Debug log
+  const response = await fetch(`${API_URL}/users/${staffId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ...staffData,
+      fullname: staffData.fullname,
+    }),
+  })
+  if (!response.ok) {
+    const errorData = await response.json()
+    console.error('Update failed:', errorData) // Debug log
+    throw new Error('Failed to update staff')
+  }
+  const result = await response.json()
+  console.log('Update staff response:', result) // Debug log
+  return result
+}
+
+const deleteStaff = async (staffId) => {
+  const response = await fetch(`${API_URL}/users/${staffId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    }
+  })
+  if (!response.ok) {
+    throw new Error('Failed to delete staff')
+  }
+  return response.json()
+}
 
 export default function StaffPage() {
   const { toast } = useToast()
-  const [staff, setStaff] = useState(initialStaff)
+  const [staff, setStaff] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [currentStaff, setCurrentStaff] = useState(null)
   const [newStaff, setNewStaff] = useState({
-    name: "",
+    fullname: "",
     position: "",
     phone: "",
     email: "",
-    status: "Đang làm việc",
+    isActive: true,
   })
+
+  // Add loadStaff function
+  const loadStaff = async () => {
+    try {
+      setIsLoading(true)
+      const data = await fetchStaff()
+      setStaff(data)
+      setError(null)
+    } catch (err) {
+      console.error('Error loading staff:', err)
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Update useEffect to use loadStaff
+  useEffect(() => {
+    loadStaff()
+  }, [])
 
   // Lọc nhân viên theo từ khóa tìm kiếm
   const filteredStaff = staff.filter(
     (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.phone.includes(searchTerm) ||
       s.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  // Xử lý thêm nhân viên mới
-  const handleAddStaff = () => {
-    if (!newStaff.name || !newStaff.position || !newStaff.phone || !newStaff.email) {
+  // Update handleAddStaff to refresh data after adding
+  const handleAddStaff = async () => {
+    if (!newStaff.fullname || !newStaff.position || !newStaff.phone || !newStaff.email) {
       toast({
         title: "Lỗi",
         description: "Vui lòng điền đầy đủ thông tin nhân viên",
@@ -100,59 +182,140 @@ export default function StaffPage() {
       return
     }
 
-    const newId = Math.max(...staff.map((s) => s.id)) + 1
-    const staffToAdd = {
-      id: newId,
-      name: newStaff.name,
-      position: newStaff.position,
-      phone: newStaff.phone,
-      email: newStaff.email,
-      status: newStaff.status,
+    try {
+      const staffToAdd = {
+        fullname: newStaff.fullname.trim(),
+        position: newStaff.position.trim(),
+        phone: newStaff.phone.trim(),
+        email: newStaff.email.trim(),
+        isActive: newStaff.isActive,
+      }
+
+      await addStaff(staffToAdd)
+      
+      // Reset form
+      setNewStaff({
+        fullname: "",
+        position: "",
+        phone: "",
+        email: "",
+        isActive: true,
+      })
+      
+      // Close dialog
+      setIsAddDialogOpen(false)
+      
+      // Refresh staff data
+      await loadStaff()
+
+      toast({
+        title: "Thành công",
+        description: "Đã thêm nhân viên mới",
+      })
+    } catch (err) {
+      console.error('Error adding staff:', err)
+      toast({
+        title: "Lỗi",
+        description: err.message || "Không thể thêm nhân viên mới",
+        variant: "destructive",
+      })
     }
-
-    setStaff([...staff, staffToAdd])
-    setNewStaff({
-      name: "",
-      position: "",
-      phone: "",
-      email: "",
-      status: "Đang làm việc",
-    })
-    setIsAddDialogOpen(false)
-
-    toast({
-      title: "Thành công",
-      description: "Đã thêm nhân viên mới",
-    })
   }
 
-  // Xử lý cập nhật nhân viên
-  const handleUpdateStaff = () => {
+  // Update handleUpdateStaff to refresh data after updating
+  const handleUpdateStaff = async () => {
     if (!currentStaff) return
 
-    const updatedStaff = staff.map((s) => (s.id === currentStaff.id ? currentStaff : s))
+    try {
+      const staffToUpdate = {
+        fullname: currentStaff.fullname.trim(),
+        position: currentStaff.position.trim(),
+        phone: currentStaff.phone.trim(),
+        email: currentStaff.email.trim(),
+        isActive: currentStaff.isActive,
+        role: currentStaff.role,
+      }
 
-    setStaff(updatedStaff)
-    setIsEditDialogOpen(false)
+      await updateStaff(currentStaff._id, staffToUpdate)
+      
+      // Close dialog
+      setIsEditDialogOpen(false)
+      
+      // Refresh staff data
+      await loadStaff()
 
-    toast({
-      title: "Thành công",
-      description: "Đã cập nhật thông tin nhân viên",
-    })
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật thông tin nhân viên",
+      })
+    } catch (err) {
+      console.error('Update error:', err)
+      toast({
+        title: "Lỗi",
+        description: err.message || "Không thể cập nhật thông tin nhân viên",
+        variant: "destructive",
+      })
+    }
   }
 
-  // Xử lý xóa nhân viên
-  const handleDeleteStaff = () => {
+  // Update handleDeleteStaff to refresh data after deleting
+  const handleDeleteStaff = async () => {
     if (!currentStaff) return
 
-    const updatedStaff = staff.filter((s) => s.id !== currentStaff.id)
-    setStaff(updatedStaff)
-    setIsDeleteDialogOpen(false)
+    try {
+      await deleteStaff(currentStaff._id)
+      
+      // Close dialog
+      setIsDeleteDialogOpen(false)
+      
+      // Refresh staff data
+      await loadStaff()
 
-    toast({
-      title: "Thành công",
-      description: "Đã xóa nhân viên",
-    })
+      toast({
+        title: "Thành công",
+        description: "Đã xóa nhân viên",
+      })
+    } catch (err) {
+      console.error('Delete error:', err)
+      toast({
+        title: "Lỗi",
+        description: err.message || "Không thể xóa nhân viên",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Add useEffect to log staff changes
+  useEffect(() => {
+    console.log('Staff list updated:', staff)
+  }, [staff])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Có lỗi xảy ra khi tải dữ liệu</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -181,13 +344,13 @@ export default function StaffPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="name" className="text-sm font-medium">
+                  <Label htmlFor="fullname" className="text-sm font-medium">
                     Họ và tên <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="name"
-                    value={newStaff.name}
-                    onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                    id="fullname"
+                    value={newStaff.fullname}
+                    onChange={(e) => setNewStaff({ ...newStaff, fullname: e.target.value })}
                     placeholder="Nhập họ và tên"
                     className="border-gray-300"
                   />
@@ -241,15 +404,15 @@ export default function StaffPage() {
                     Trạng thái
                   </Label>
                   <Select
-                    value={newStaff.status}
-                    onValueChange={(value) => setNewStaff({ ...newStaff, status: value })}
+                    value={newStaff.isActive ? "true" : "false"}
+                    onValueChange={(value) => setNewStaff({ ...newStaff, isActive: value === "true" })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue placeholder="Chọn trạng thái" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Đang làm việc">Đang làm việc</SelectItem>
-                      <SelectItem value="Nghỉ việc">Nghỉ việc</SelectItem>
+                      <SelectItem value="true">Đang làm việc</SelectItem>
+                      <SelectItem value="false">Nghỉ việc</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -323,11 +486,11 @@ export default function StaffPage() {
                   </TableRow>
                 ) : (
                   filteredStaff.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow key={s._id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          {s.name}
+                          {s.fullname}
                         </div>
                       </TableCell>
                       <TableCell>{s.position}</TableCell>
@@ -336,10 +499,10 @@ export default function StaffPage() {
                       <TableCell>
                         <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            s.status === "Đang làm việc" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                            s.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {s.status}
+                          {s.isActive ? "Đang làm việc" : "Nghỉ việc"}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -400,13 +563,13 @@ export default function StaffPage() {
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-name" className="text-sm font-medium">
+                  <Label htmlFor="edit-fullname" className="text-sm font-medium">
                     Họ và tên <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    id="edit-name"
-                    value={currentStaff.name}
-                    onChange={(e) => setCurrentStaff({ ...currentStaff, name: e.target.value })}
+                    id="edit-fullname"
+                    value={currentStaff.fullname}
+                    onChange={(e) => setCurrentStaff({ ...currentStaff, fullname: e.target.value })}
                     className="border-gray-300"
                   />
                 </div>
@@ -457,15 +620,15 @@ export default function StaffPage() {
                     Trạng thái
                   </Label>
                   <Select
-                    value={currentStaff.status}
-                    onValueChange={(value) => setCurrentStaff({ ...currentStaff, status: value })}
+                    value={currentStaff.isActive ? "true" : "false"}
+                    onValueChange={(value) => setCurrentStaff({ ...currentStaff, isActive: value === "true" })}
                   >
                     <SelectTrigger className="border-gray-300">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Đang làm việc">Đang làm việc</SelectItem>
-                      <SelectItem value="Nghỉ việc">Nghỉ việc</SelectItem>
+                      <SelectItem value="true">Đang làm việc</SelectItem>
+                      <SelectItem value="false">Nghỉ việc</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

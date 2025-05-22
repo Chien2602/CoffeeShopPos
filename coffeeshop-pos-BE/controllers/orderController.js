@@ -157,10 +157,29 @@ const getOrdersByEmployeeId = async (req, res) => {
     }
 };
 
+const getOrdersByCustomerId = async (req, res) => {
+    try {
+        const { customerId } = req.params;
+        const orders = await Order.find({ customerId: customerId })
+            .populate('tableId', 'tableNumber')
+            .populate('customerId', 'name')
+            .populate('employeeId', 'name')
+            .populate({
+                path: 'items.productId',
+                select: 'title price thumbnail'
+            });
+
+        res.status(200).json({ success: true, data: orders });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+}
 
 module.exports = {
     createOrder,
     getOrders,
     getOrderById,
-    getOrdersByEmployeeId
+    getOrdersByEmployeeId,
+    getOrdersByCustomerId
 };

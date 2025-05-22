@@ -37,7 +37,7 @@ const getCustomers = async (req, res) => {
 
 const updateCustomer = async (req, res) => {
   const { id } = req.params;
-  const { name, phone, email, address, points, rank } = req.body;
+  const { name, phone, email, address, points, rank, totalSpent } = req.body;
 
   try {
     const existingCustomer = await Customer.findById(id);
@@ -52,6 +52,7 @@ const updateCustomer = async (req, res) => {
       ...(address && { address }),
       ...(points && { points }),
       ...(rank && { rank }),
+      ...(totalSpent && { totalSpent }),
     };
 
     // Update customer
@@ -86,9 +87,16 @@ const getCustomerById = async (req, res) => {
   res.status(200).json(customer);
 };
 
+const deleteCustomer = async (req, res) => {
+  const { id } = req.params;
+  const customer = await Customer.findByIdAndDelete(id);
+  res.status(200).json(customer);
+};
+
 module.exports = {
   createCustomer,
   getCustomers,
   updateCustomer,
   getCustomerById,
+  deleteCustomer,
 };
