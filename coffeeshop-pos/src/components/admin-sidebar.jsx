@@ -126,7 +126,7 @@ export function AdminSidebar() {
           <div className="mt-auto border-t">
             <div className="grid items-start px-2 py-2 text-sm font-medium">
               <Link
-                to="/"
+                to="/login"
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
               >
                 <LogOut className="h-5 w-5" />

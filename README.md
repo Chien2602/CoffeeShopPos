@@ -77,7 +77,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 #### Backend
 ```bash
 cd coffeeshop-pos-BE
-npm run dev
+nodemon server
 ```
 
 #### Frontend
